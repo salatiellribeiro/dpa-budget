@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DPA Budget</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root{--pri:#1b4d3e;--bg:#ffffff;--mut:#f4f6f8;--txt:#1a1a1a;}
+  html,body{margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt);}
+  header{position:sticky;top:0;background:#fff;border-bottom:1px solid #e6e8eb;padding:12px 16px;z-index:10;display:flex;align-items:center;gap:12px}
+  header h1{font-size:18px;margin:0;color:var(--pri)}
+  .tabs{display:flex;gap:8px;overflow-x:auto;padding:8px 12px;background:var(--mut);position:sticky;top:52px;z-index:9}
+  .tabs button{border:none;background:#fff;padding:8px 12px;border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,.06);white-space:nowrap}
+  .tabs button.active{background:var(--pri);color:#fff}
+  main{padding:12px}
+  section{display:none}
+  section.active{display:block}
+  .card{background:#fff;border:1px solid #e6e8eb;border-radius:12px;padding:12px;margin:10px 0;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+  .row{display:flex;gap:8px}
+  .row>*{flex:1}
+  label{font-size:12px;color:#444}
+  input,select,textarea{width:100%;padding:10px;border:1px solid #d9d9df;border-radius:8px;background:#fff}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:8px;border-bottom:1px solid #eee;font-size:13px}
+  th{text-align:left;background:#fafafa}
+  .btn{background:var(--pri);color:#fff;border:none;border-radius:10px;padding:10px 14px}
+  .btn.secondary{background:#edf2ee;color:#0f2f26}
+  .pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#edf6ff}
+  .muted{color:#777;font-size:12px}
+  .kpi{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .kpi .card h3{margin:0;font-size:13px;color:#555}
+  .kpi .card p{margin:6px 0 0 0;font-weight:700}
+  .right{margin-left:auto}
+</style>
+</head>
+<body>
+<header>
+  <img src="icon-192.png" alt="" width="28" height="28" style="border-radius:6px">
+  <h1>DPA Budget</h1>
+  <span class="muted right" id="updated"></span>
+</header>
+<div class="tabs" id="tabs"></div>
+<main>
+  <section id="dashboard" class="active">
+    <div class="kpi">
+      <div class="card"><h3>Receita (ExGST)</h3><p id="kpiRevenue">$0</p></div>
+      <div class="card"><h3>Pago (ExGST)</h3><p id="kpiPaid">$0</p></div>
+      <div class="card"><h3>Custos (ExGST)</h3><p id="kpiCost">$0</p></div>
+      <div class="card"><h3>Margem %</h3><p id="kpiMarginPct">0%</p></div>
+    </div>
+    <div class="card">
+      <h3>Projetos</h3>
+      <table id="tblProjects">
+        <thead><tr><th>ID</th><th>Cliente</th><th>Contrato</th><th>Receita</th><th>Custos</th><th>Margem%</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="projects">
+    <div class="card">
+      <h3>Novo Projeto</h3>
+      <div class="row">
+        <div><label>Project ID</label><input id="p_id" placeholder="DPA-002"></div>
+        <div><label>Cliente</label><input id="p_client" placeholder="Cliente"></div>
+      </div>
+      <div class="row">
+        <div><label>Contrato (ex-GST)</label><input id="p_contract" type="number" inputmode="decimal" placeholder="16523"></div>
+        <div><label>PO Ref</label><input id="p_po" placeholder="PO123"></div>
+      </div>
+      <button class="btn" onclick="addProject()">Salvar Projeto</button>
+    </div>
+    <div class="card">
+      <h3>Lista</h3>
+      <table id="listProjects"><thead><tr><th>ID</th><th>Cliente</th><th>Contrato</th><th>Ações</th></tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+  <section id="expenses">
+    <div class="card">
+      <h3>Nova Despesa</h3>
+      <div class="row">
+        <div><label>Projeto</label><select id="e_pid"></select></div>
+        <div><label>Categoria</label>
+          <select id="e_cat"><option>Materials</option><option>Labour</option><option>Equipment</option><option>Other</option></select>
+        </div>
+      </div>
+      <div class="row">
+        <div><label>Descrição</label><input id="e_desc" placeholder="Dulux WW 4L"></div>
+        <div><label>Valor ExGST</label><input id="e_val" type="number" inputmode="decimal" placeholder="320"></div>
+      </div>
+      <button class="btn" onclick="addExpense()">Adicionar</button>
+    </div>
+    <div class="card">
+      <h3>Despesas</h3>
+      <table id="tblExpenses"><thead><tr><th>Data</th><th>Projeto</th><th>Categoria</th><th>Descrição</th><th>ExGST</th></tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+  <section id="labour">
+    <div class="card">
+      <h3>Horas de Mão de Obra</h3>
+      <div class="row">
+        <div><label>Projeto</label><select id="l_pid"></select></div>
+        <div><label>Trabalhador</label><input id="l_worker" placeholder="Bruno"></div>
+      </div>
+      <div class="row">
+        <div><label>Horas</label><input id="l_hours" type="number" inputmode="decimal" placeholder="8"></div>
+        <div><label>Tarifa $/h (ex-GST)</label><input id="l_rate" type="number" inputmode="decimal" placeholder="55"></div>
+      </div>
+      <button class="btn" onclick="addLabour()">Adicionar</button>
+    </div>
+    <div class="card">
+      <h3>Lançamentos</h3>
+      <table id="tblLabour"><thead><tr><th>Data</th><th>Projeto</th><th>Trabalhador</th><th>Horas</th><th>$ Total</th></tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+  <section id="invoices">
+    <div class="card">
+      <h3>Novo Claim/Invoice</h3>
+      <div class="row">
+        <div><label>Projeto</label><select id="i_pid"></select></div>
+        <div><label>Tipo</label><select id="i_type"><option>Deposit</option><option>Progress</option><option>Final</option><option>Variation</option></select></div>
+      </div>
+      <div class="row">
+        <div><label>% do Contrato</label><input id="i_pct" type="number" inputmode="decimal" placeholder="40"></div>
+        <div><label>Status</label><select id="i_status"><option>Draft</option><option>Sent</option><option>Paid</option></select></div>
+      </div>
+      <button class="btn" onclick="addInvoice()">Adicionar</button>
+    </div>
+    <div class="card">
+      <h3>Faturas/Claims</h3>
+      <table id="tblInvoices"><thead><tr><th>Data</th><th>Projeto</th><th>Tipo</th><th>%</th><th>ExGST</th><th>Status</th></tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+  <section id="settings">
+    <div class="card">
+      <h3>Configurações</h3>
+      <div class="row">
+        <div><label>GST (%)</label><input id="s_gst" type="number" inputmode="decimal" placeholder="10"></div>
+        <div><label>Depósito Padrão (%)</label><input id="s_dep" type="number" inputmode="decimal" placeholder="40"></div>
+      </div>
+      <button class="btn" onclick="saveSettings()">Salvar</button>
+    </div>
+  </section>
+
+  <section id="backup">
+    <div class="card">
+      <h3>Backup / Restauração</h3>
+      <button class="btn secondary" onclick="exportData()">Exportar JSON</button>
+      <input type="file" accept="application/json" onChange="importData(event)">
+      <p class="muted">Use “Exportar JSON” para fazer backup no iCloud/Files. Você pode restaurar em outro iPhone.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+const tabs = [
+  {id:'dashboard', name:'Dashboard'},
+  {id:'projects', name:'Projetos'},
+  {id:'expenses', name:'Despesas'},
+  {id:'labour', name:'Mão de Obra'},
+  {id:'invoices', name:'Invoices'},
+  {id:'settings', name:'Settings'},
+  {id:'backup', name:'Backup'}
+];
+let state = null;
+const LSKEY = 'dpa_budget_v1';
+
+function $id(x){return document.getElementById(x)}
+function money(v){return (v||0).toLocaleString('en-AU',{style:'currency',currency:'AUD'})}
+function now(){return new Date().toISOString().slice(0,10)}
+
+function load(){
+  state = JSON.parse(localStorage.getItem(LSKEY) || '{}');
+  if(!state.projects){
+    state = {
+      settings:{gst:10, deposit:40},
+      projects:[{id:'DPA-001', client:'Sullivan', contract:16523, po:'PO27400135'}],
+      expenses:[{date:now(), pid:'DPA-001', cat:'Materials', desc:'Dulux WW 4L', val:320}],
+      labour:[{date:now(), pid:'DPA-001', worker:'Bruno', hours:8, rate:55}],
+      invoices:[{date:now(), pid:'DPA-001', type:'Deposit', pct:40, exgst:16523*0.40, status:'Paid'},
+                {date:now(), pid:'DPA-001', type:'Progress', pct:35, exgst:16523*0.35, status:'Sent'}]
+    };
+    save();
+  }
+}
+
+function save(){
+  localStorage.setItem(LSKEY, JSON.stringify(state));
+  $id('updated').textContent = new Date().toLocaleString();
+  renderAll();
+}
+
+function renderTabs(){
+  const el = $id('tabs');
+  el.innerHTML = '';
+  const target = location.hash.replace('#','') || 'dashboard';
+  tabs.forEach(t=>{
+    const b = document.createElement('button');
+    b.textContent = t.name;
+    b.className = target===t.id ? 'active':'';
+    b.onclick = ()=>{ document.querySelectorAll('section').forEach(s=>s.classList.remove('active')); 
+                      $id(t.id).classList.add('active');
+                      document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active')); 
+                      b.classList.add('active');
+                      history.replaceState(null,'','#'+t.id);
+                    };
+    el.appendChild(b);
+  });
+  document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
+  $id(target).classList.add('active');
+}
+
+function metrics(){
+  const invTotal = state.invoices.reduce((s,i)=>s+(+i.exgst||0),0);
+  const paid = state.invoices.filter(i=>i.status==='Paid').reduce((s,i)=>s+(+i.exgst||0),0);
+  const cost = state.expenses.reduce((s,e)=>s+(+e.val||0),0) + state.labour.reduce((s,l)=>s+(+l.hours*(+l.rate)||0),0);
+  const margin = invTotal - cost;
+  return {invTotal, paid, cost, marginPct: invTotal>0 ? (margin/invTotal*100) : 0};
+}
+
+function renderDashboard(){
+  const m = metrics();
+  $id('kpiRevenue').textContent = money(m.invTotal);
+  $id('kpiPaid').textContent = money(m.paid);
+  $id('kpiCost').textContent = money(m.cost);
+  $id('kpiMarginPct').textContent = (m.marginPct).toFixed(1) + '%';
+
+  const tb = $id('tblProjects').querySelector('tbody');
+  tb.innerHTML='';
+  state.projects.forEach(p=>{
+    const inv = state.invoices.filter(i=>i.pid===p.id).reduce((s,i)=>s+(+i.exgst||0),0);
+    const cost = state.expenses.filter(e=>e.pid===p.id).reduce((s,e)=>s+(+e.val||0),0) +
+                 state.labour.filter(l=>l.pid===p.id).reduce((s,l)=>s+(+l.hours*(+l.rate)||0),0);
+    const marginPct = inv>0 ? ( (inv - cost)/inv*100 ) : 0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${p.id}</td><td>${p.client||''}</td><td>${money(p.contract||0)}</td>
+                    <td>${money(inv)}</td><td>${money(cost)}</td><td>${marginPct.toFixed(1)}%</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function renderProjectLists(){
+  const sel = [$id('e_pid'), $id('l_pid'), $id('i_pid')];
+  sel.forEach(s=>{ s.innerHTML = state.projects.map(p=>`<option>${p.id}</option>`).join('') });
+  const tb = $id('listProjects').querySelector('tbody');
+  tb.innerHTML='';
+  state.projects.forEach(p=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${p.id}</td><td>${p.client||''}</td><td>${money(p.contract||0)}</td>
+                    <td><button class="btn secondary" onclick="delProject('${p.id}')">Apagar</button></td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function renderExpenses(){
+  const tb = $id('tblExpenses').querySelector('tbody');
+  tb.innerHTML='';
+  state.expenses.slice().reverse().forEach(e=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${e.date}</td><td>${e.pid}</td><td><span class="pill">${e.cat}</span></td>
+                    <td>${e.desc||''}</td><td>${money(+e.val||0)}</td>`;
+    tb.appendChild(tr);
+  });
+}
+function renderLabour(){
+  const tb = $id('tblLabour').querySelector('tbody');
+  tb.innerHTML='';
+  state.labour.slice().reverse().forEach(l=>{
+    const tot = (+l.hours||0)*(+l.rate||0);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${l.date}</td><td>${l.pid}</td><td>${l.worker||''}</td>
+                    <td>${l.hours}</td><td>${money(tot)}</td>`;
+    tb.appendChild(tr);
+  });
+}
+function renderInvoices(){
+  const tb = $id('tblInvoices').querySelector('tbody');
+  tb.innerHTML='';
+  state.invoices.slice().reverse().forEach(i=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i.date}</td><td>${i.pid}</td><td>${i.type}</td><td>${i.pct||''}</td>
+                    <td>${money(+i.exgst||0)}</td><td>${i.status}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function renderAll(){
+  renderTabs();
+  renderDashboard();
+  renderProjectLists();
+  renderExpenses();
+  renderLabour();
+  renderInvoices();
+  $id('s_gst').value = state.settings.gst;
+  $id('s_dep').value = state.settings.deposit;
+}
+
+// Actions
+function addProject(){
+  const id = $id('p_id').value.trim();
+  if(!id) return alert('Informe Project ID');
+  state.projects.push({
+    id,
+    client:$id('p_client').value.trim(),
+    contract: +$id('p_contract').value || 0,
+    po:$id('p_po').value.trim()
+  });
+  $id('p_id').value = $id('p_client').value = $id('p_contract').value = $id('p_po').value = '';
+  save();
+}
+
+function delProject(id){
+  if(!confirm('Apagar projeto '+id+'?')) return;
+  state.projects = state.projects.filter(p=>p.id!==id);
+  state.expenses = state.expenses.filter(e=>e.pid!==id);
+  state.labour = state.labour.filter(l=>l.pid!==id);
+  state.invoices = state.invoices.filter(i=>i.pid!==id);
+  save();
+}
+
+function addExpense(){
+  const pid = $id('e_pid').value;
+  const val = +$id('e_val').value;
+  if(!pid || !val) return alert('Projeto e valor são obrigatórios');
+  state.expenses.push({date:now(), pid, cat:$id('e_cat').value, desc:$id('e_desc').value.trim(), val});
+  $id('e_desc').value = $id('e_val').value = '';
+  save();
+}
+
+function addLabour(){
+  const pid = $id('l_pid').value;
+  const hours = +$id('l_hours').value;
+  const rate = +$id('l_rate').value;
+  if(!pid || !hours || !rate) return alert('Projeto, horas e tarifa são obrigatórios');
+  state.labour.push({date:now(), pid, worker:$id('l_worker').value.trim(), hours, rate});
+  $id('l_worker').value=$id('l_hours').value=$id('l_rate').value='';
+  save();
+}
+
+function addInvoice(){
+  const pid = $id('i_pid').value;
+  const type = $id('i_type').value;
+  const pct = +$id('i_pct').value;
+  const proj = state.projects.find(p=>p.id===pid);
+  const exgst = proj ? (proj.contract||0) * (pct/100) : 0;
+  state.invoices.push({date:now(), pid, type, pct, exgst, status:$id('i_status').value});
+  $id('i_pct').value='';
+  save();
+}
+
+function saveSettings(){
+  state.settings.gst = +$id('s_gst').value || 10;
+  state.settings.deposit = +$id('s_dep').value || 40;
+  save();
+}
+
+function exportData(){
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'dpa_budget_backup.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(ev){
+  const f = ev.target.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{ state = JSON.parse(reader.result); save(); alert('Dados restaurados.'); };
+  reader.readAsText(f);
+}
+
+// boot
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js'); }
+load();
+renderAll();
+</script>
+</body>
+</html>
